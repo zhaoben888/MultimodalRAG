@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业级多模态图文知识库系统</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #060b14;
+            --bg-card: #0c1526;
+            --panel-bg: rgba(10, 18, 34, 0.78);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --border-light: rgba(255, 255, 255, 0.11);
+            --text-primary: #e8ebf0;
+            --text-secondary: #8892a6;
+            --text-muted: #5b6478;
+            --accent-teal: #0dffd2;
+            --accent-purple: #a855f7;
+            --accent-blue: #4d8eff;
+            --accent-rose: #f472b6;
+            --glass-blur: blur(24px);
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+            --shadow-lg: 0 8px 40px rgba(0,0,0,0.5);
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.08) transparent;
+        }
+        *::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        *::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        *::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.08);
+            border-radius: 10px;
+            transition: background 0.2s;
+        }
+        *::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.16);
+        }
+        *::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .aurora-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .aurora-glow-1 {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(13, 255, 210, 0.12) 0%, rgba(0,0,0,0) 70%);
+            top: -100px;
+            right: -100px;
+            filter: blur(80px);
+            animation: float-glow 15s infinite alternate;
+        }
+        .aurora-glow-2 {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, rgba(0,0,0,0) 70%);
+            bottom: -150px;
+            left: -150px;
+            filter: blur(90px);
+            animation: float-glow 20s infinite alternate-reverse;
+        }
+
+        @keyframes float-glow {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(60px, 40px) scale(1.15); }
+        }
+
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            z-index: 1;
+            backdrop-filter: var(--glass-blur);
+        }
+
+        .sidebar {
+            width: 340px;
+            flex-shrink: 0;
+            background: rgba(7, 13, 26, 0.85);
+            backdrop-filter: var(--glass-blur);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            z-index: 2;
+            gap: 0;
+            overflow: hidden;
+        }
+        .sidebar-top {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .sidebar-bottom {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-top: 12px;
+            min-height: 0;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+            padding: 0 4px;
+        }
+        .logo-text {
+            font-family: 'Outfit', sans-serif;
+            font-size: 17px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-teal) 0%, var(--accent-blue) 50%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.02em;
+        }
+
+        .upload-card {
+            border: 1.5px dashed rgba(255, 255, 255, 0.12);
+            border-radius: var(--radius-md);
+            padding: 16px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            background: rgba(255, 255, 255, 0.015);
+        }
+        .upload-card:hover, .upload-card.dragover {
+            border-color: var(--accent-teal);
+            background: rgba(13, 255, 210, 0.05);
+            transform: translateY(-1px);
+            box-shadow: 0 0 0 4px rgba(13, 255, 210, 0.06);
+        }
+        .upload-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+        .upload-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+        .upload-hint {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* 批量上传进度队列 */
+        .queue-container {
+            max-height: 380px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.45);
+            border-radius: 14px;
+            border: 1px solid rgba(13, 255, 210, 0.25);
+            display: none;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.5), 0 8px 32px rgba(13, 255, 210, 0.08);
+        }
+        .queue-item {
+            font-size: 12.5px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .queue-item-header {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-primary);
+        }
+        .queue-progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .queue-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-teal), var(--accent-blue));
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* 文件夹挂载控制盒 */
+        .mount-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 10px 12px;
+        }
+        .mount-input-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .mount-input {
+            flex-grow: 1;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 12px;
+            outline: none;
+        }
+        .mount-input:focus {
+            border-color: var(--accent-teal);
+        }
+        .mount-btn {
+            background: linear-gradient(135deg, var(--accent-teal) 0%, var(--accent-blue) 100%);
+            border: none;
+            color: #060b14;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(13, 255, 210, 0.12);
+        }
+        .mount-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(13, 255, 210, 0.22);
+        }
+        .mount-progress {
+            margin-top: 8px;
+            font-size: 11px;
+            display: none;
+        }
+        .mount-bar-fill {
+            height: 4px;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-teal), var(--accent-purple));
+            margin-top: 4px;
+            border-radius: 2px;
+            transition: width 0.4s ease;
+        }
+
+        /* 文档列表 */
+        .doc-list-section {
+            max-height: 200px;
+            flex-shrink: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.01);
+            border-radius: 14px;
+            padding: 12px;
+        }
+        #historySection {
+            max-height: none;
+            flex-grow: 1;
+            flex-shrink: 1;
+            min-height: 50px;
+            margin-top: 0;
+        }
+        .history-item {
+            padding: 5px 8px !important;
+            border-radius: 8px;
+            font-size: 10.5px !important;
+        }
+        .section-title {
+            font-size: 10.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .doc-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .doc-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 40px 12px 16px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+        }
+        .doc-item:hover, .doc-item.active {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.08);
+        }
+        .doc-name {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 260px;
+        }
+        .doc-info {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 3px;
+        }
+        .doc-active-indicator {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-blue);
+            border-radius: 50%;
+            display: none;
+        }
+        .doc-item.active .doc-active-indicator {
+            display: block;
+        }
+        .doc-delete-btn {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            line-height: 22px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.15s ease;
+            padding: 0;
+            z-index: 1;
+        }
+        .doc-item:hover .doc-delete-btn {
+            opacity: 1;
+        }
+        .doc-delete-btn:hover {
+            color: #ff5d5d;
+            background: rgba(255,93,93,0.15);
+        }
+
+        /* 右侧核心会话区 */
+        .chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 2;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .header-panel {
+            height: 64px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+            background: rgba(10, 15, 26, 0.65);
+            backdrop-filter: var(--glass-blur);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 28px;
+        }
+        .active-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            opacity: 0.9;
+        }
+        .api-setup-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .api-setup-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 28px 32px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 0;
+        }
+        .chat-empty {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            gap: 12px;
+            padding: 60px 20px;
+        }
+        .chat-empty .empty-icon {
+            font-size: 48px;
+            opacity: 0.5;
+        }
+        .chat-empty .empty-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        .message-bubble {
+            display: flex;
+            gap: 12px;
+            max-width: 85%;
+            min-width: 0;
+            animation: message-fade 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        @keyframes message-fade {
+            from { opacity: 0; transform: translateY(12px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .message-bubble.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .message-bubble.assistant {
+            align-self: flex-start;
+        }
+        .avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-sm);
+        }
+        .avatar.user {
+            background: linear-gradient(135deg, #4d8eff, #6366f1);
+            color: #fff;
+        }
+        .avatar.assistant {
+            background: linear-gradient(135deg, #0dffd2, #10b981);
+            color: #060b14;
+        }
+        .msg-text-card {
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            padding: 14px 18px;
+            border-radius: 16px;
+            font-size: 13.5px;
+            line-height: 1.65;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            overflow-x: auto;
+            min-width: 0;
+            max-width: 100%;
+            transition: border-color 0.2s ease;
+        }
+        .msg-text-card:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+        .message-bubble.user .msg-text-card {
+            background: linear-gradient(135deg, rgba(77, 142, 255, 0.18), rgba(99, 102, 241, 0.12));
+            border-color: rgba(77, 142, 255, 0.22);
+            border-bottom-right-radius: 6px;
+            box-shadow: 0 2px 12px rgba(77, 142, 255, 0.08);
+        }
+        .message-bubble.assistant .msg-text-card {
+            border-bottom-left-radius: 6px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        }
+        .streaming-text-card {
+            position: relative;
+        }
+        .streaming-text-card::after {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 14px;
+            background: var(--accent-teal);
+            margin-left: 2px;
+            vertical-align: text-bottom;
+            animation: blink 0.8s infinite;
+            border-radius: 1px;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .source-card {
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            margin-top: 8px;
+            overflow: hidden;
+            font-size: 12px;
+            transition: border-color 0.2s ease;
+        }
+        .source-card:hover {
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+        .source-header {
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--accent-teal);
+            font-weight: 500;
+            font-size: 11.5px;
+            user-select: none;
+        }
+        .source-header:hover {
+            background: rgba(13, 255, 210, 0.04);
+        }
+        .source-body {
+            padding: 10px 14px;
+            color: var(--text-secondary);
+            line-height: 1.55;
+            display: none;
+            max-height: 160px;
+            overflow-y: auto;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.15);
+        }
+
+        .input-area {
+            padding: 18px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            background: rgba(10, 15, 26, 0.7);
+            backdrop-filter: var(--glass-blur);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .textarea-wrapper {
+            flex-grow: 1;
+            position: relative;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            transition: all 0.2s ease;
+        }
+        .textarea-wrapper:focus-within {
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 255, 210, 0.07);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .input-area textarea {
+            width: 100%;
+            height: 46px;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            padding: 13px 16px;
+            font-size: 13.5px;
+            resize: none;
+            line-height: 1.5;
+        }
+        .send-btn {
+            width: 46px;
+            height: 46px;
+            background: linear-gradient(135deg, var(--accent-teal) 0%, var(--accent-blue) 100%);
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(13, 255, 210, 0.18);
+            flex-shrink: 0;
+        }
+        .send-btn:hover {
+            transform: scale(1.06);
+            box-shadow: 0 6px 20px rgba(13, 255, 210, 0.3);
+        }
+        .send-btn:disabled {
+            opacity: 0.35;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 10;
+            display: none;
+            animation: fade-in 0.25s ease;
+        }
+        .drawer {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 460px;
+            background: #111827;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 32px;
+            z-index: 11;
+            display: none;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        @keyframes fade-in {
+            from { opacity: 0; } to { opacity: 1; }
+        }
+        .drawer-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .form-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+        .form-input:focus {
+            border-color: var(--accent-blue);
+        }
+        .drawer-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 28px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue), #2563eb);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .math-expr {
+            color: var(--accent-teal);
+            font-family: 'Outfit', sans-serif;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .msg-text-card table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 12.5px;
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .msg-text-card th, .msg-text-card td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .msg-text-card th {
+            background: rgba(13, 255, 210, 0.08);
+            font-weight: 600;
+            color: var(--accent-teal);
+            font-size: 12px;
+            letter-spacing: 0.03em;
+        }
+        .msg-text-card tr:nth-child(even) td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .msg-text-card tr:last-child td {
+            border-bottom: none;
+        }
+        /* 提取图片展示面板 */
+        .extracted-images-panel {
+            background: rgba(17, 25, 40, 0.45);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            animation: slide-down 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes slide-down {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .images-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        .images-panel-header .toggle-btn {
+            font-size: 12px;
+            color: var(--accent-teal);
+            cursor: pointer;
+            user-select: none;
+            transition: opacity 0.2s;
+        }
+        .images-panel-header .toggle-btn:hover {
+            opacity: 0.8;
+        }
+        .images-panel-body {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding: 4px 0 10px 0;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+        .images-panel-body::-webkit-scrollbar {
+            height: 6px;
+        }
+        .images-panel-body::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        .img-wrapper {
+            position: relative;
+            flex-shrink: 0;
+            width: 100px;
+            height: 75px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .img-wrapper:hover {
+            transform: scale(1.05);
+            border-color: var(--accent-teal);
+            box-shadow: 0 4px 12px rgba(13, 255, 210, 0.15);
+        }
+        .img-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        /* Lightbox 图片放大预览 */
+        .lightbox-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            animation: fade-in 0.25s ease;
+        }
+        .lightbox-content {
+            position: relative;
+            max-width: 90vw;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .lightbox-img {
+            max-width: 100%;
+            max-height: 75vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+        .lightbox-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: var(--text-primary);
+            font-size: 24px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .lightbox-download {
+            background: linear-gradient(135deg, var(--accent-teal), var(--accent-blue));
+            border: none;
+            color: #0b0f19;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+        .lightbox-download:hover {
+            transform: scale(1.05);
+        }
+        .chat-inline-img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: block;
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+        }
+        .chat-inline-img:hover {
+            transform: scale(1.02);
+            border-color: var(--accent-teal);
+            box-shadow: 0 4px 24px rgba(13, 255, 210, 0.18);
+        }
+        .img-container {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="aurora-bg">
+        <div class="aurora-glow-1"></div>
+        <div class="aurora-glow-2"></div>
+    </div>
+
+    <div class="app-container">
+        <!-- 左侧控制栏 -->
+        <div class="sidebar">
+            <div class="sidebar-top">
+            <div class="logo-section">
+                <span style="font-size: 28px;">🗂️</span>
+                <span class="logo-text">企业级多模态图文知识库系统</span>
+            </div>
+
+            <!-- 文件批量上传区 -->
+            <div class="upload-card" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <span class="upload-icon">📥</span>
+                <div class="upload-title">批量导入文档</div>
+                <div class="upload-hint">支持拖拽或选择 PDF/Word/Excel/PPT/图片</div>
+            </div>
+            <input type="file" id="fileInput" accept=".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg" multiple>
+
+            <!-- 上传任务状态队列 -->
+            <div class="queue-container" id="queueContainer">
+                <!-- 动态渲染队列文件进度 -->
+            </div>
+
+            <!-- 文档库列表展示 -->
+            <div class="doc-list-section">
+                <div class="section-title">🔍 知识库范围</div>
+                <div class="doc-list" id="docList">
+                    <div class="doc-hint" style="color:var(--text-secondary); font-size:11px; text-align:center; padding:16px;">
+                        加载中...
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <div class="sidebar-bottom">
+            <!-- 历史对话记录 -->
+            <div class="doc-list-section" id="historySection">
+                <div class="section-title">🕘 历史对话记录</div>
+                <div class="doc-list" id="historyList">
+                    <div class="doc-hint" style="color:var(--text-secondary); font-size:11px; text-align:center; padding:16px;">
+                        暂无历史对话
+                    </div>
+                </div>
+            </div>
+
+            <!-- 本地目录批量挂载 -->
+            <div class="mount-box">
+                <div class="section-title" style="margin-bottom: 2px;">粘贴文件夹目录</div>
+                <div class="mount-input-row">
+                    <input type="text" id="mountPathInput" class="mount-input" placeholder="D:\my_docs">
+                    <button class="mount-btn" onclick="mountFolder()">提交</button>
+                </div>
+                <div class="mount-progress" id="mountProgress">
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                        <span id="mountStatusText">正在扫描...</span>
+                        <span id="mountPercentText">0/0</span>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.1); height:4px; border-radius:2px; overflow:hidden;">
+                        <div class="mount-bar-fill" id="mountBarFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统调试控制入口 -->
+            <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 8px;">
+                <button class="api-setup-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); font-size:12px; padding: 6px 12px;" onclick="openDebugDrawer()">
+                    <span>⚙️</span> 系统调试控制台
+                </button>
+            </div>
+            </div>
+        </div>
+
+        <!-- 右侧对话对话框 -->
+        <div class="chat-container">
+            <div class="header-panel">
+                <div class="active-title" id="activeDocTitle">请先从左侧选择一个文档进行交谈</div>
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-secondary); user-select: none;">
+                        <input type="checkbox" id="showSourcesToggle" style="cursor:pointer;" onchange="toggleSourcesVisibility()"> 显示参考来源
+                    </label>
+                    <button class="api-setup-btn" onclick="openKeyDrawer()">🔑 配置 API Key</button>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+            </div>
+
+            <div class="input-area">
+                <div class="textarea-wrapper">
+                    <textarea id="questionInput" placeholder="输入关于所选文档的问题... (按 Enter 发送)"></textarea>
+                </div>
+                <button class="send-btn" id="sendBtn" onclick="sendChat()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0b0f19" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 密钥配置模态窗 -->
+    <div class="drawer-overlay" id="drawerOverlay" onclick="closeKeyDrawer()"></div>
+    <div class="drawer" id="keyDrawer">
+        <div class="drawer-title">配置大模型密钥 API Keys</div>
+        <div class="form-group">
+            <label class="form-label">阿里百炼 API Key (用于文本向量化)</label>
+            <input type="password" id="bailianKeyInput" class="form-input" placeholder="输入百炼 API Key">
+        </div>
+        <div class="form-group">
+            <label class="form-label">DeepSeek API Key (用于对话大模型)</label>
+            <input type="password" id="deepseekKeyInput" class="form-input" placeholder="输入以 sk- 开头的 API Key">
+        </div>
+        <div class="drawer-actions">
+            <button class="btn-secondary" onclick="closeKeyDrawer()">取消</button>
+            <button class="btn-primary" onclick="saveKeys()">保存并应用</button>
+        </div>
+    </div>
+
+    <!-- 调试控制模态窗 -->
+    <div class="drawer-overlay" id="debugDrawerOverlay" onclick="closeDebugDrawer()"></div>
+    <div class="drawer" id="debugDrawer" style="width: 750px; max-width: 90vw;">
+        <div class="drawer-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <span style="background: linear-gradient(135deg, var(--accent-teal), var(--accent-blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; font-size:18px;">⚙️ 系统运行与日志控制台</span>
+            <span style="font-size: 13px; color: var(--text-secondary); cursor: pointer;" onclick="closeDebugDrawer()">✕ 关闭</span>
+        </div>
+        
+        <!-- 调试选项卡头部 -->
+        <div style="display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 16px; gap: 16px;">
+            <div id="tab-log-btn" class="debug-tab active" onclick="switchDebugTab('log')" style="padding: 8px 12px; cursor: pointer; font-weight: 500; font-size: 13px;">⚠️ 异常报错日志</div>
+            <div id="tab-db-btn" class="debug-tab" onclick="switchDebugTab('db')" style="padding: 8px 12px; cursor: pointer; font-size: 13px; color: var(--text-secondary);">📦 向量数据库状态</div>
+        </div>
+
+        <!-- 选项卡 1：错误日志 -->
+        <div id="tab-log-content" class="debug-tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span class="upload-hint">展现 MinerU 解析进程或其它后台模块在最近发生的报错详情：</span>
+                <button class="mount-btn" style="background: #ef4444; color: white; padding: 4px 10px; font-size: 11px; border-radius: 6px;" onclick="clearDebugLog()">清空日志</button>
+            </div>
+            <textarea id="debugLogText" readonly style="width: 100%; height: 320px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 10px; color: #ef4444; padding: 12px; font-family: monospace; font-size: 12px; resize: none; outline: none; line-height: 1.5; overflow-y: auto;"></textarea>
+        </div>
+
+        <!-- 选项卡 2：数据库状态 -->
+        <div id="tab-db-content" class="debug-tab-content" style="display: none;">
+            <span class="upload-hint" style="display: block; margin-bottom: 8px;">以下是目前已成功加载到向量数据库（vector_db.json）中的文档物理清单：</span>
+            <div id="debugDbList" style="width: 100%; height: 320px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                <!-- 动态填充 -->
+            </div>
+        </div>
+
+        <div class="drawer-actions" style="margin-top: 20px;">
+            <button class="btn-primary" onclick="closeDebugDrawer()">确定</button>
+        </div>
+    </div>
+
+    <!-- Lightbox 图片放大预览蒙层 -->
+    <div class="lightbox-overlay" id="lightboxOverlay" onclick="closeLightbox()">
+        <div class="lightbox-content" onclick="event.stopPropagation()">
+            <span class="lightbox-close" onclick="closeLightbox()">×</span>
+            <img class="lightbox-img" id="lightboxImg" src="" alt="放大图">
+            <a class="lightbox-download" id="lightboxDownloadBtn" href="" download>下载原图</a>
+        </div>
+    </div>
+
+    <!-- 图片匹配弹窗 -->
+    </div>
+
+    <script>
+
+        let selectedDocId = null;
+        let isChatting = false;
+        let mountPollInterval = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('bailianKeyInput').value = localStorage.getItem('x_bailian_key') || '';
+            document.getElementById('deepseekKeyInput').value = localStorage.getItem('x_deepseek_key') || '';
+            
+            const showSources = localStorage.getItem('x_show_sources') === 'true';
+            document.getElementById('showSourcesToggle').checked = showSources;
+            
+            document.getElementById('questionInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendChat();
+                }
+            });
+            
+            document.getElementById('fileInput').addEventListener('change', uploadBatchFiles);
+            
+            const dropZone = document.getElementById('dropZone');
+            if (dropZone) {
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropZone.classList.add('dragover');
+                    }, false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropZone.classList.remove('dragover');
+                    }, false);
+                });
+
+                dropZone.addEventListener('drop', (e) => {
+                    const dt = e.dataTransfer;
+                    const files = Array.from(dt.files);
+                    if (files.length > 0) {
+                        handleFiles(files);
+                    }
+                }, false);
+            }
+            
+            refreshDocList();
+            initKeys();
+            // 清空旧parse残留的图片修正数据
+            try { localStorage.removeItem('rag_img_corrections'); localStorage.removeItem('rag_product_images'); } catch(e) {}
+        // 图片修正数据关联doc_id：文档重新解析后旧修正全部失效
+        (function() {
+            try {
+                const curDoc = localStorage.getItem('rag_last_doc_id') || '';
+                const firstDoc = curDoc ? curDoc : 'none';
+                const ic = loadImageCorrections();
+                const pi = loadProductImages();
+                const hasData = Object.keys(ic).length > 0 || Object.keys(pi).length > 0;
+                const storedDoc = localStorage.getItem('rag_correction_doc') || '';
+                // 如果图片修正数据不是当前doc生成的，全部清空
+                if (hasData && storedDoc !== firstDoc) {
+                    saveImageCorrections({});
+                    saveProductImages({});
+                    localStorage.setItem('rag_correction_doc', firstDoc);
+                }
+            } catch(e) {}
+        })();
+
+            renderHistoryList();
+            checkMountStatus(); // 初始化检查一次后台挂载状态
+        });
+
+        let cachedKeys = { bailian: '', deepseek: '' };
+        async function initKeys() {
+            try {
+                const resp = await fetch('/api/keys');
+                cachedKeys = await resp.json();
+            } catch(e) {
+                cachedKeys.bailian = localStorage.getItem('x_bailian_key') || '';
+                cachedKeys.deepseek = localStorage.getItem('x_deepseek_key') || '';
+            }
+        }
+        function getKeys() {
+            return cachedKeys;
+        }
+
+        function openKeyDrawer() {
+            document.getElementById('drawerOverlay').style.display = 'block';
+            document.getElementById('keyDrawer').style.display = 'block';
+        }
+
+        function closeKeyDrawer() {
+            document.getElementById('drawerOverlay').style.display = 'none';
+            document.getElementById('keyDrawer').style.display = 'none';
+        }
+
+        async function saveKeys() {
+            const bl = document.getElementById('bailianKeyInput').value.trim();
+            const ds = document.getElementById('deepseekKeyInput').value.trim();
+            cachedKeys = { bailian: bl, deepseek: ds };
+            try {
+                await fetch('/api/keys', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bailian: bl, deepseek: ds })
+                });
+            } catch(e) {}
+            localStorage.setItem('x_bailian_key', bl);
+            localStorage.setItem('x_deepseek_key', ds);
+            closeKeyDrawer();
+            alert("密钥已保存");
+        }
+
+
+        async function loadDocumentImages(docId) {
+            const panel = document.getElementById('extractedImagesPanel');
+            const countSpan = document.getElementById('extractedImagesCount');
+            const body = document.getElementById('extractedImagesBody');
+            
+            if (docId === 'all' || docId === 'global') {
+                panel.style.display = 'none';
+                body.innerHTML = '';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/documents/${docId}/images`);
+                const images = await response.json();
+                
+                if (images && images.length > 0) {
+                    countSpan.innerText = images.length;
+                    body.innerHTML = '';
+                    images.forEach((imgUrl, index) => {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'img-wrapper';
+                        wrapper.onclick = () => openLightbox(imgUrl);
+                        wrapper.innerHTML = `<img src="${imgUrl}" alt="提取图 ${index + 1}" loading="lazy" title="点击放大图片" onerror="this.onerror=null;this.style.display='none';this.parentNode.style.display='none';">`;
+                        body.appendChild(wrapper);
+                    });
+                    panel.style.display = 'flex';
+                    // 默认展开
+                    const btn = document.getElementById('toggleImagesBtn');
+                    btn.innerText = '收起';
+                    body.style.display = 'flex';
+                } else {
+                    panel.style.display = 'none';
+                    body.innerHTML = '';
+                }
+            } catch (err) {
+                console.error("加载文档提取图片失败", err);
+                panel.style.display = 'none';
+            }
+        }
+
+        function toggleImagesBody() {
+            const body = document.getElementById('extractedImagesBody');
+            const btn = document.getElementById('toggleImagesBtn');
+            if (body.style.display === 'none') {
+                body.style.display = 'flex';
+                btn.innerText = '收起';
+            } else {
+                body.style.display = 'none';
+                btn.innerText = '展开';
+            }
+        }
+
+
+        async function mountFolder() {
+            await initKeys();
+            const keys = getKeys();
+            if (!keys.bailian) { alert("请先配置百炼 Key！"); openKeyDrawer(); return; }
+            const folderPath = document.getElementById("mountPathInput").value.trim();
+            if (!folderPath) { alert("请输入文件夹路径"); return; }
+            try {
+                const resp = await fetch("/api/mount", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-Bailian-Key": keys.bailian },
+                    body: JSON.stringify({ folder_path: folderPath })
+                });
+                if (!resp.ok) { const err = await resp.json(); throw new Error(err.detail); }
+                alert("后台任务已启动，请留意进度。");
+                checkMountStatus();
+            } catch (err) { alert("挂载失败: " + err.message); }
+
+        }
+
+
+
+
+
+
+
+
+        function openLightbox(imgUrl) {
+            document.getElementById("lightboxOverlay").style.display = "flex";
+            document.getElementById("lightboxImg").src = imgUrl;
+            document.getElementById("lightboxDownloadBtn").href = imgUrl;
+            document.getElementById("lightboxDownloadBtn").setAttribute("download", imgUrl.substring(imgUrl.lastIndexOf("/") + 1));
+        }
+        function closeLightbox() { document.getElementById("lightboxOverlay").style.display = "none"; }
+
+        function toggleSourcesVisibility() {
+            const isChecked = document.getElementById("showSourcesToggle").checked;
+            localStorage.setItem("x_show_sources", isChecked ? "true" : "false");
+            document.querySelectorAll(".sources-container").forEach(c => { c.style.display = isChecked ? "block" : "none"; });
+        }
+        async function deleteDocument(docId, filename) {
+            if (!confirm("确认删除文档 " + filename + "？此操作不可撤销。")) return;
+            try {
+                const resp = await fetch("/api/documents/" + docId, { method: "DELETE" });
+                if (!resp.ok) throw new Error((await resp.json()).detail);
+                if (selectedDocId === docId) { selectedDocId = null; }
+                refreshDocList();
+            } catch (err) { alert("删除失败: " + err.message); }
+        }
+
+        async function selectDocument(docId, filename) {
+            selectedDocId = docId;
+            document.getElementById("activeDocTitle").innerText = "当前对话: " + filename;
+            document.getElementById("questionInput").disabled = false;
+            document.getElementById("sendBtn").disabled = false;
+            document.getElementById("questionInput").focus();
+            refreshDocList();
+            localStorage.setItem("rag_last_doc_id", docId);
+        }
+
+        async function refreshDocList() {
+            try {
+                const response = await fetch("/api/documents");
+                const list = await response.json();
+                const container = document.getElementById("docList");
+                container.innerHTML = "";
+                const globalItem = document.createElement("div");
+                globalItem.className = "doc-item " + (selectedDocId === "all" ? "active" : "");
+                globalItem.onclick = () => selectDocument("all", "全局知识库");
+                globalItem.innerHTML = '<div><div class="doc-name" style="color:var(--accent-teal);font-weight:600;">全局知识库问答</div><div class="doc-info">聚合检索所有已导入文档</div></div><div class="doc-active-indicator"></div>';
+                container.appendChild(globalItem);
+                if (list.length === 0) {
+                    container.innerHTML += '<div class="doc-hint" style="color:var(--text-secondary);font-size:11px;text-align:center;padding:16px;">暂无解析好的文档，请先导入。</div>';
+                    if (!selectedDocId) selectDocument("all", "全局知识库");
+                    return;
+                }
+                list.forEach(doc => {
+                    const item = document.createElement("div");
+                    item.className = "doc-item " + (selectedDocId === doc.doc_id ? "active" : "");
+                    item.onclick = (e) => { if (!e.target.classList.contains("doc-delete-btn")) selectDocument(doc.doc_id, doc.filename); };
+                    const imgWarn = (doc.images_ok === false) ? '<span style="color:#ff5d5d;font-size:10px;border:1px solid #ff5d5d;padding:1px 4px;border-radius:4px;margin-left:6px;">图片丢失</span>' : "";
+                    item.innerHTML = '<div style="flex:1;min-width:0;"><div class="doc-name" title="' + doc.filename + '">' + doc.filename + imgWarn + '</div><div class="doc-info">' + doc.chunks + ' 语义段落</div></div><div class="doc-active-indicator"></div><button class="doc-delete-btn" title="删除" onclick="event.stopPropagation();deleteDocument(\'' + doc.doc_id + '\',\'' + doc.filename.replace(/'/g,"\\'") + '\')">×</button>';
+                    container.appendChild(item);
+                });
+                if (!selectedDocId) selectDocument("all", "全局知识库");
+            } catch (err) {
+                console.error("加载文档库失败", err);
+            }
+        }
+        async function sendChat() {
+            if (isChatting) return;
+            if (!selectedDocId) { alert("请先从左侧选择一个文档"); return; }
+            await initKeys();
+            const keys = getKeys();
+            if (!keys.bailian || !keys.deepseek) { alert("请先配置好百炼 Key 与 DeepSeek Key！"); openKeyDrawer(); return; }
+            const input = document.getElementById("questionInput");
+            const question = input.value.trim();
+            if (!question) return;
+            let answerText = "";
+            input.value = ""; isChatting = true; document.getElementById("sendBtn").disabled = true;
+            const chatMessages = document.getElementById("chatMessages");
+            const ub = document.createElement("div"); ub.className = "message-bubble user";
+            ub.innerHTML = '<div class="avatar user">👤</div><div class="msg-text-card">' + escapeHtml(question) + '</div>';
+            chatMessages.appendChild(ub); chatMessages.scrollTop = chatMessages.scrollHeight;
+            const ab = document.createElement("div"); ab.className = "message-bubble assistant";
+            const ss = document.getElementById("showSourcesToggle").checked;
+            ab.innerHTML = '<div class="avatar assistant">🤖</div><div style="flex-grow:1;display:flex;flex-direction:column;gap:8px;"><div class="msg-text-card streaming-text-card">正在搜索文档并思考中...</div><div class="sources-container" style="display:' + (ss ? "block" : "none") + ';"></div></div>';
+            chatMessages.appendChild(ab); chatMessages.scrollTop = chatMessages.scrollHeight;
+            const stc = ab.querySelector(".streaming-text-card");
+            const sc2 = ab.querySelector(".sources-container");
+            try {
+                const resp = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json", "X-Bailian-Key": keys.bailian, "X-Deepseek-Key": keys.deepseek }, body: JSON.stringify({ doc_id: selectedDocId, question: question }) });
+                if (!resp.ok) { const err = await resp.json(); throw new Error(err.detail || "请求大模型失败"); }
+                const reader = resp.body.getReader(); const decoder = new TextDecoder("utf-8");
+                answerText = ""; stc.innerText = "";
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    const events = chunk.split("\n\n");
+                    for (const event of events) {
+                        if (!event.trim()) continue;
+                        if (event.startsWith("event: sources")) {
+                            const lines = event.split("\n"); const dl = lines.find(l => l.startsWith("data: "));
+                            if (dl) { renderSources(JSON.parse(dl.substring(6)), sc2); }
+                        } else if (event.startsWith("event: error")) {
+                            const lines = event.split("\n"); const dl = lines.find(l => l.startsWith("data: "));
+                            if (dl) throw new Error(dl.substring(6));
+                        } else if (event.startsWith("data: ")) {
+                            try { const dj = JSON.parse(event.substring(6)); answerText += dj.content; } catch (e) { answerText += event.substring(6); }
+                            stc.innerHTML = renderMarkdownSimple(answerText);
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
+                    }
+                }
+            } catch (err) { stc.innerHTML = '<span style="color:#ef4444;">错误: ' + err.message + '</span>'; }
+            finally { isChatting = false; document.getElementById("sendBtn").disabled = false; input.focus(); addHistoryEntry(question, answerText); }
+        }
+
+        async function checkMountStatus() {
+            try {
+                const resp = await fetch("/api/mount/status");
+                const status = await resp.json();
+                if (status.status === "running") {
+                    document.getElementById("mountProgress").style.display = "block";
+                    document.getElementById("mountStatusText").innerText = "正在扫描: " + (status.current_file || "");
+                    document.getElementById("mountPercentText").innerText = status.completed + "/" + status.total;
+                    if (status.total > 0) document.getElementById("mountBarFill").style.width = (status.completed / status.total * 100) + "%";
+                    setTimeout(checkMountStatus, 2000);
+                } else { document.getElementById("mountProgress").style.display = "none"; }
+            } catch (e) {}
+        }
+
+        async function uploadBatchFiles() {
+            const input = document.getElementById("fileInput");
+            if (input.files.length === 0) return;
+            try { await handleFiles(Array.from(input.files)); } finally { input.value = ""; }
+        }
+
+        async function handleFiles(files) {
+            await initKeys();
+            const keys = getKeys();
+            if (!keys.bailian) { alert("请配置阿里百炼 API Key"); openKeyDrawer(); return; }
+            const qc = document.getElementById("queueContainer"); qc.innerHTML = ""; qc.style.display = "flex";
+            const pe = {};
+            files.forEach((file, idx) => {
+                const item = document.createElement("div"); item.className = "queue-item";
+                item.innerHTML = '<div class="queue-item-header"><span style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + file.name + '</span><span class="q-perc-text">排队中...</span></div><div class="queue-progress-bar"><div class="queue-progress-fill" style="width:0%"></div></div>';
+                qc.appendChild(item);
+                pe[idx] = { fill: item.querySelector(".queue-progress-fill"), perc: item.querySelector(".q-perc-text") };
+            });
+            let sc = 0;
+            for (let idx = 0; idx < files.length; idx++) {
+                const file = files[idx];
+                const fd = new FormData(); fd.append("files", file);
+                pe[idx].fill.style.width = "10%"; pe[idx].perc.innerText = "上传中...";
+                let fp = 10;
+                const ft = setInterval(() => {
+                    if (fp < 90) { fp += Math.floor(Math.random() * 3) + 1; if (fp > 90) fp = 90; pe[idx].fill.style.width = fp + "%"; pe[idx].perc.innerText = "上传解析中... " + fp + "%"; }
+                    else if (fp < 95) { fp += 1; pe[idx].fill.style.width = fp + "%"; pe[idx].perc.innerText = "MinerU 深度解析中..."; }
+                }, 2000);
+                try {
+                    const resp = await fetch("/api/upload", { method: "POST", headers: { "X-Bailian-Key": keys.bailian }, body: fd });
+                    clearInterval(ft);
+                    if (!resp.ok) { const err = await resp.json(); throw new Error(err.detail || "上传文件失败"); }
+                    const results = await resp.json(); const res = results[0];
+                    if (res && res.status === "failed") {
+                        pe[idx].fill.style.backgroundColor = "#ef4444"; pe[idx].fill.style.width = "100%";
+                        pe[idx].perc.innerHTML = '<span style="color:#ef4444;">失败: ' + escapeHtml((res.error||"未知错误").slice(0,80)) + '</span>';
+                    } else {
+                        pe[idx].fill.style.width = "100%"; pe[idx].perc.innerText = "完成"; sc++; refreshDocList();
+                        if (res && res.doc_id) selectDocument(res.doc_id, res.filename);
+                    }
+                } catch (err) {
+                    clearInterval(ft); pe[idx].fill.style.backgroundColor = "#ef4444"; pe[idx].fill.style.width = "100%";
+                    pe[idx].perc.innerHTML = '<span style="color:#ef4444;">网络错误: ' + escapeHtml(err.message.slice(0,60)) + '</span>';
+                }
+            }
+            if (sc === files.length) setTimeout(() => { qc.style.display = "none"; qc.innerHTML = ""; }, 2000);
+        }
+
+
+        function renderSources(sources, container) {
+            container.innerHTML = "";
+            sources.forEach(src => {
+                const card = document.createElement("div"); card.className = "source-card";
+                const hdr = (src.header || "").replace(/.*?-\s*/, "").trim();
+                card.innerHTML = '<div class="source-header" onclick="toggleSource(this)"><span>匹配段落 ' + src.index + ' | 章节: ' + escapeHtml(hdr) + '</span><span>▼</span></div><div class="source-body">' + escapeHtml(src.text) + '</div>';
+                container.appendChild(card);
+            });
+        }
+
+        function toggleSource(headerElement) {
+            const body = headerElement.nextElementSibling; const arrow = headerElement.children[1];
+            if (body.style.display === "block") { body.style.display = "none"; arrow.innerText = "▼"; }
+            else { body.style.display = "block"; arrow.innerText = "▲"; }
+        }
+        const HISTORY_KEY = 'rag_chat_history';
+        function loadHistory() { try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch(e) { return []; } }
+        function saveHistory(items) { localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(-50))); }
+        function addHistoryEntry(question, answerPreview) {
+            const items = loadHistory();
+            items.push({ q: question, a: (answerPreview||'').slice(0,120), ts: Date.now() });
+            saveHistory(items);
+            renderHistoryList();
+        }
+        function clearHistory() {
+            if (!confirm('确认清空所有历史对话记录？')) return;
+            saveHistory([]);
+            renderHistoryList();
+        }
+        function loadConversation(idx) {
+            const items = loadHistory();
+            if (idx < 0 || idx >= items.length) return;
+            document.getElementById('questionInput').value = items[idx].q;
+        }
+        function renderHistoryList() {
+            const container = document.getElementById('historyList');
+            if (!container) return;
+            const items = loadHistory().reverse();
+            container.innerHTML = '';
+            if (!items.length) {
+                container.innerHTML = '<div class="doc-hint" style="color:var(--text-secondary);font-size:11px;text-align:center;padding:16px;">暂无历史对话</div>';
+                return;
+            }
+            const header = document.createElement('div');
+            header.style.cssText = 'font-size:10px;color:var(--text-secondary);margin-bottom:4px;display:flex;justify-content:space-between;';
+            header.innerHTML = `<span>最近 ${items.length} 条</span><span style="cursor:pointer;color:#ff5d5d;" onclick="clearHistory()">清空全部</span>`;
+            container.appendChild(header);
+            items.forEach((item, i) => {
+                const el = document.createElement('div');
+                el.className = 'doc-item history-item';
+                el.style.cssText = 'font-size:11px;padding:6px 8px;';
+                el.onclick = () => loadConversation(items.length - 1 - i);
+                el.innerHTML = `<div style="flex:1;min-width:0;"><div style="color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(item.q||'').slice(0,35)}</div><div style="color:var(--text-secondary);font-size:10px;">${new Date(item.ts).toLocaleString('zh-CN')}</div></div>`;
+                container.appendChild(el);
+            });
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function renderMarkdownSimple(text) {
+            let html = escapeHtml(text);
+            html = html.replace(/!\[(.*?)\]\s*\(\s*([^\s\)]+)\s*\)/g, '<img src="$2" alt="$1" loading="lazy" class="chat-inline-img" onclick="openLightbox(\'$2\')" onerror="this.style.display=\'none\'">');
+            html = html.replace(/&lt;img\s[^&]*src=&quot;([^&]+)&quot;[^&]*\/?&gt;/gi, '<img src="$1" loading="lazy" class="chat-inline-img" onerror="this.style.display=\'none\'">');
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\$\$(.*?)\$\$/g, '<span class="math-expr">$1</span>');
+            
+            // Markdown 管道表格简单流式解析
+            let lines = html.split('\n');
+            let result = [];
+            let inTable = false;
+            let tableRows = [];
+            
+            for (let line of lines) {
+                let trimmed = line.trim();
+                if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+                    if (!inTable) {
+                        inTable = true;
+                        tableRows = [];
+                    }
+                    if (trimmed.replace(/[\s:\-|]/g, '') === '') {
+                        continue;
+                    }
+                    let cells = trimmed.split('|').map(c => c.trim()).slice(1, -1);
+                    tableRows.push(cells);
+                } else {
+                    if (inTable) {
+                        let tableHtml = '<table>';
+                        tableRows.forEach((row, rIdx) => {
+                            tableHtml += '<tr>';
+                            row.forEach(cell => {
+                                let tag = rIdx === 0 ? 'th' : 'td';
+                                tableHtml += `<${tag}>${cell}</${tag}>`;
+                            });
+                            tableHtml += '</tr>';
+                        });
+                        tableHtml += '</table>';
+                        result.push(tableHtml);
+                        inTable = false;
+                    }
+                    result.push(trimmed);
+                }
+            }
+            if (inTable) {
+                let tableHtml = '<table>';
+                tableRows.forEach((row, rIdx) => {
+                    tableHtml += '<tr>';
+                    row.forEach(cell => {
+                        let tag = rIdx === 0 ? 'th' : 'td';
+                        tableHtml += `<${tag}>${cell}</${tag}>`;
+                    });
+                    tableHtml += '</tr>';
+                });
+                tableHtml += '</table>';
+                result.push(tableHtml);
+            }
+            
+            return result.join('<br>');
+        }
+
+        function openDebugDrawer() {
+            document.getElementById('debugDrawerOverlay').style.display = 'block';
+            document.getElementById('debugDrawer').style.display = 'block';
+            switchDebugTab('log');
+        }
+
+        function closeDebugDrawer() {
+            document.getElementById('debugDrawerOverlay').style.display = 'none';
+            document.getElementById('debugDrawer').style.display = 'none';
+        }
+
+        function switchDebugTab(tabName) {
+            const tabs = document.querySelectorAll('.debug-tab');
+            const contents = document.querySelectorAll('.debug-tab-content');
+            
+            tabs.forEach(t => {
+                t.classList.remove('active');
+                t.style.color = 'var(--text-secondary)';
+                t.style.borderBottom = 'none';
+            });
+            contents.forEach(c => c.style.display = 'none');
+
+            if (tabName === 'log') {
+                const btn = document.getElementById('tab-log-btn');
+                btn.classList.add('active');
+                btn.style.color = 'var(--accent-teal)';
+                btn.style.borderBottom = '2px solid var(--accent-teal)';
+                document.getElementById('tab-log-content').style.display = 'block';
+                loadDebugLog();
+            } else if (tabName === 'db') {
+                const btn = document.getElementById('tab-db-btn');
+                btn.classList.add('active');
+                btn.style.color = 'var(--accent-teal)';
+                btn.style.borderBottom = '2px solid var(--accent-teal)';
+                document.getElementById('tab-db-content').style.display = 'block';
+                loadDebugDbInfo();
+            }
+        }
+
+        async function loadDebugLog() {
+            const txtArea = document.getElementById('debugLogText');
+            txtArea.value = "正在读取错误日志，请稍候...";
+            try {
+                const res = await fetch('/api/debug/log');
+                const data = await res.json();
+                txtArea.value = data.log;
+                txtArea.scrollTop = txtArea.scrollHeight;
+            } catch (err) {
+                txtArea.value = `读取日志异常: ${err.message}`;
+            }
+        }
+
+        async function clearDebugLog() {
+            if (!confirm("确定要清空当前的错误日志文件吗？")) return;
+            try {
+                const res = await fetch('/api/debug/clear_log', { method: 'POST' });
+                const data = await res.json();
+                alert(data.message);
+                loadDebugLog();
+            } catch (err) {
+                alert(`清空失败: ${err.message}`);
+            }
+        }
+
+        async function loadDebugDbInfo() {
+            const container = document.getElementById('debugDbList');
+            container.innerHTML = "<div style='color:var(--text-secondary); font-size:12px;'>正在读取向量库清单...</div>";
+            try {
+                const res = await fetch('/api/debug/vector_db_info');
+                const info = await res.json();
+                
+                container.innerHTML = "";
+                if (info.length === 0) {
+                    container.innerHTML = "<div style='color:var(--text-secondary); font-size:12px; text-align:center; padding:24px;'>向量数据库为空，目前没有任何文档成功建立索引。</div>";
+                    return;
+                }
+
+                info.forEach(item => {
+                    const row = document.createElement('div');
+                    row.style = "background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:10px; font-size:12px; display:flex; justify-content:space-between; align-items:center;";
+                    row.innerHTML = `
+                        <div style="display:flex; flex-direction:column; gap:4px; text-align:left;">
+                            <span style="font-weight:600; color:var(--text-primary); max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${item.filename}">${item.filename}</span>
+                            <span style="color:var(--text-secondary); font-size:11px;">ID: ${item.doc_id}</span>
+                        </div>
+                        <div style="text-align:right; display:flex; flex-direction:column; gap:2px;">
+                            <span style="color:var(--accent-teal); font-weight:500;">${item.chunk_count} 分片</span>
+                            <span style="color:var(--text-secondary); font-size:10px;">${item.total_chars} 字符</span>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+            } catch (err) {
+                container.innerHTML = `<div style='color:#ef4444; font-size:12px;'>读取向量清单异常: ${err.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
